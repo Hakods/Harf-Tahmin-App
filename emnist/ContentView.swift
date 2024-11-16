@@ -4,18 +4,20 @@ import UIKit
 
 struct ContentView: View {
     @State private var predictedClassLabel: String = "?"
-    @State private var targetClassLabel: String = ""
     @State private var message: String = ""
-    @State private var classProbabilities: [String: Double] = [:]
     @State private var currentDrawing = [CGPoint]()
     @State private var drawings = [[CGPoint]]()
     @State private var showMessage = false
-    private let model = try? EMNISTClassifier(configuration: .init())
-    private let allClassLabels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    @State private var inputLetters = [String]() // Tahmin edilen harfleri kaydeder
 
+    @StateObject private var audioPlayerManager = AudioPlayerManager()
+
+    private let model = try? EMNISTClassifier(configuration: .init())
+    
     var body: some View {
         ZStack {
-            Color(hex: "#222831").edgesIgnoringSafeArea(.all) // Background color
+            Color(hex: "#222831") // Background color
+                .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
                 Text("Harf Tahmin Uygulaması")
@@ -25,16 +27,6 @@ struct ContentView: View {
                     .padding(.top, 30)
 
                 VStack {
-                    Text("Hedef Harf: \(targetClassLabel)")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color(hex: "#393E46").opacity(0.8))
-                        .foregroundColor(Color(hex: "#EEEEEE"))
-                        .cornerRadius(15)
-                        .padding([.leading, .trailing])
-
                     Text("Tahmin Edilen Harf: \(predictedClassLabel)")
                         .font(.title2)
                         .fontWeight(.semibold)
@@ -80,50 +72,41 @@ struct ContentView: View {
                 )
                 .padding()
 
-                HStack(spacing: 20) {
-                    Button(action: {
-                        selectNewTargetClassLabel()
-                        clearDrawing()
-                    }) {
-                        Text("Yeni Harf Belirle")
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(hex: "#EEEEEE"))
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(hex: "#393E46"))
-                            .cornerRadius(15)
-                            .shadow(radius: 5)
-                    }
+                Button(action: {
+                    predictFromCanvas()
+                }) {
+                    Text("Tahmin Yap")
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(hex: "#EEEEEE"))
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "#00ADB5"))
+                        .cornerRadius(15)
+                        .shadow(radius: 5)
+                }
+                .padding([.leading, .trailing])
 
-                    Button(action: {
-                        predictFromCanvas()
-                    }) {
-                        Text("Tahmin Yap")
-                            .fontWeight(.bold)
-                            .foregroundColor(Color(hex: "#EEEEEE"))
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(hex: "#00ADB5"))
-                            .cornerRadius(15)
-                            .shadow(radius: 5)
-                    }
+                // Girilen harfleri okumak için buton
+                Button(action: {
+                    audioPlayerManager.speakWord(from: inputLetters) // Harfleri kelime olarak oku
+                    inputLetters.removeAll() // Listeyi sıfırla
+                }) {
+                    Text("Girilen Harfleri Oku")
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(hex: "#EEEEEE"))
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(hex: "#00ADB5"))
+                        .cornerRadius(15)
+                        .shadow(radius: 5)
                 }
                 .padding([.leading, .trailing])
             }
         }
-        .onAppear(perform: selectNewTargetClassLabel)
     }
 
-    // Hex kodunu SwiftUI rengine dönüştürme fonksiyonu
     init() {
         UINavigationBar.appearance().tintColor = UIColor(Color(hex: "#00ADB5"))
-    }
-
-    func selectNewTargetClassLabel() {
-        targetClassLabel = String(allClassLabels.randomElement() ?? "A")
-        predictedClassLabel = "?"
-        message = ""
-        showMessage = false
     }
 
     func predictFromCanvas() {
@@ -141,14 +124,11 @@ struct ContentView: View {
         do {
             let output = try model.prediction(x: inputBuffer)
             predictedClassLabel = output.classLabel
-            classProbabilities = output.classLabel_probs
+            inputLetters.append(predictedClassLabel) // Tahmin edilen harfi kaydet
 
-            if predictedClassLabel == targetClassLabel {
-                message = "Doğru çizdin, tebrikler!"
-            } else {
-                message = "Yanlış çizdin, tekrar dene!"
-                clearDrawing()
-            }
+            message = "Doğru çizdin, tebrikler!"
+            audioPlayerManager.playSound(for: predictedClassLabel)
+
             withAnimation {
                 showMessage = true
             }
@@ -156,6 +136,8 @@ struct ContentView: View {
         } catch {
             print("Model tahmin işlemi başarısız oldu: \(error.localizedDescription)")
         }
+
+        clearDrawing()
     }
 
     func renderCanvasToUIImage() -> UIImage {
@@ -183,16 +165,15 @@ struct ContentView: View {
     func clearDrawing() {
         drawings = []
         currentDrawing = []
-        classProbabilities = [:]
     }
 }
 
+// Color hex uzantısı
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var rgb: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&rgb)
-        
         let r = Double((rgb >> 16) & 0xFF) / 255.0
         let g = Double((rgb >> 8) & 0xFF) / 255.0
         let b = Double(rgb & 0xFF) / 255.0

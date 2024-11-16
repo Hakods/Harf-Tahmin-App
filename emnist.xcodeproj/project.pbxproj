@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		3CD018A42CE37D8400BBD305 /* emnist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = emnist.app; path = "/Users/hakods/Desktop/emnist/build/Debug-iphoneos/emnist.app"; sourceTree = "<absolute>"; };
+		3C86D21B2CE4B72C0046ADD0 /* emnist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = emnist.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +33,7 @@
 			isa = PBXGroup;
 			children = (
 				3C8C752F2CDE64FB0020FEAF /* emnist */,
+				3C86D21B2CE4B72C0046ADD0 /* emnist.app */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,7 +59,7 @@
 			packageProductDependencies = (
 			);
 			productName = emnist;
-			productReference = 3CD018A42CE37D8400BBD305 /* emnist.app */;
+			productReference = 3C86D21B2CE4B72C0046ADD0 /* emnist.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
