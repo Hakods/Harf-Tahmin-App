@@ -29,8 +29,9 @@ class AudioPlayerManager: ObservableObject {
         let word = letters.joined() // Harfleri birleştirerek bir kelime oluşturur
         let utterance = AVSpeechUtterance(string: word)
         utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
-        utterance.rate = 0.5 // Okuma hızı (insansı hız için 0.5 ideal)
+        utterance.rate = 0.3 // Okuma hızı (insansı hız için 0.5 ideal)
         utterance.pitchMultiplier = 1.0 // Ses tonu
+        utterance.volume = 1.0 // Ses seviyesi
         speechSynthesizer.speak(utterance)
         print("Okunan kelime (Türkçe): \(word)")
     }
