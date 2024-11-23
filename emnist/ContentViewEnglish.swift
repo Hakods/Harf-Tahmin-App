@@ -4,13 +4,11 @@ import UIKit
 
 struct ContentViewEnglish: View {
     @State private var predictedClassLabel: String = "?"
-    @State private var message: String = ""
     @State private var currentDrawing = [CGPoint]()
     @State private var drawings = [[CGPoint]]()
-    @State private var showMessage = false
     @State private var inputLetters = [String]() // Store predicted letters
 
-    @StateObject private var audioPlayerManager = AudioPlayerManagerEnglish()
+    @StateObject private var audioPlayerManagerEng = AudioPlayerManagerEng()
 
     private let model = try? EMNISTClassifier(configuration: .init())
     
@@ -38,12 +36,15 @@ struct ContentViewEnglish: View {
                         .padding([.leading, .trailing])
                 }
 
-                if showMessage {
-                    Text(message)
-                        .font(.headline)
-                        .foregroundColor(message == "Great job, correct!" ? Color(hex: "#00ADB5") : Color(hex: "#EEEEEE"))
-                        .transition(.opacity)
+                // Show written letters
+                if !inputLetters.isEmpty {
+                    Text("Entered Letters: \(inputLetters.joined())")
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(hex: "#EEEEEE"))
                         .padding()
+                        .background(Color(hex: "#393E46").opacity(0.8))
+                        .cornerRadius(10)
                 }
 
                 Canvas { context, size in
@@ -87,8 +88,8 @@ struct ContentViewEnglish: View {
                 .padding([.leading, .trailing])
 
                 Button(action: {
-                    audioPlayerManager.playAllLetters(inputLetters: inputLetters)
-                    inputLetters.removeAll()
+                    audioPlayerManagerEng.speakWord(from: inputLetters) // Use correct audio manager
+                    inputLetters.removeAll() // Clear the list after reading
                 }) {
                     Text("Read Entered Letters")
                         .fontWeight(.bold)
@@ -104,10 +105,6 @@ struct ContentViewEnglish: View {
         }
     }
 
-    init() {
-        UINavigationBar.appearance().tintColor = UIColor(Color(hex: "#00ADB5"))
-    }
-
     func predictFromCanvas() {
         let canvasImage = renderCanvasToUIImage()
 
@@ -118,19 +115,14 @@ struct ContentViewEnglish: View {
             return
         }
 
-        print("Prediction started")
-
         do {
             let output = try model.prediction(x: inputBuffer)
             predictedClassLabel = output.classLabel
             inputLetters.append(predictedClassLabel)
 
-            message = "Great job, correct!"
-            audioPlayerManager.playSound(for: "\(predictedClassLabel)_ENG") // İngilizce ses dosyasını çalar
+            // Speak predicted letter
+            audioPlayerManagerEng.speakWord(from: [predictedClassLabel])
 
-            withAnimation {
-                showMessage = true
-            }
             print("Prediction successful, class: \(predictedClassLabel)")
         } catch {
             print("Model prediction failed: \(error.localizedDescription)")
@@ -166,4 +158,3 @@ struct ContentViewEnglish: View {
         currentDrawing = []
     }
 }
-

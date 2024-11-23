@@ -4,19 +4,17 @@ import UIKit
 
 struct ContentView: View {
     @State private var predictedClassLabel: String = "?"
-    @State private var message: String = ""
     @State private var currentDrawing = [CGPoint]()
     @State private var drawings = [[CGPoint]]()
-    @State private var showMessage = false
     @State private var inputLetters = [String]() // Tahmin edilen harfleri kaydeder
 
     @StateObject private var audioPlayerManager = AudioPlayerManager()
 
     private let model = try? EMNISTClassifier(configuration: .init())
-    
+
     var body: some View {
         ZStack {
-            Color(hex: "#222831") // Background color
+            Color(hex: "#222831") // Arka plan rengi
                 .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
@@ -38,12 +36,15 @@ struct ContentView: View {
                         .padding([.leading, .trailing])
                 }
 
-                if showMessage {
-                    Text(message)
-                        .font(.headline)
-                        .foregroundColor(message == "Doğru çizdin, tebrikler!" ? Color(hex: "#00ADB5") : Color(hex: "#EEEEEE"))
-                        .transition(.opacity)
+                // Girilen harflerin yazılı halini göstermek
+                if !inputLetters.isEmpty {
+                    Text("Girilen Harfler: \(inputLetters.joined())")
+                        .font(.title3)
+                        .fontWeight(.medium)
+                        .foregroundColor(Color(hex: "#EEEEEE"))
                         .padding()
+                        .background(Color(hex: "#393E46").opacity(0.8))
+                        .cornerRadius(10)
                 }
 
                 Canvas { context, size in
@@ -86,9 +87,8 @@ struct ContentView: View {
                 }
                 .padding([.leading, .trailing])
 
-                // Girilen harfleri okumak için buton
                 Button(action: {
-                    audioPlayerManager.speakWord(from: inputLetters) // Harfleri kelime olarak oku
+                    audioPlayerManager.speakWord(from: inputLetters) // TTS ile harfleri oku
                     inputLetters.removeAll() // Listeyi sıfırla
                 }) {
                     Text("Girilen Harfleri Oku")
@@ -101,12 +101,9 @@ struct ContentView: View {
                         .shadow(radius: 5)
                 }
                 .padding([.leading, .trailing])
+
             }
         }
-    }
-
-    init() {
-        UINavigationBar.appearance().tintColor = UIColor(Color(hex: "#00ADB5"))
     }
 
     func predictFromCanvas() {
@@ -119,19 +116,14 @@ struct ContentView: View {
             return
         }
 
-        print("Tahmin işlemi başladı")
-
         do {
             let output = try model.prediction(x: inputBuffer)
             predictedClassLabel = output.classLabel
-            inputLetters.append(predictedClassLabel) // Tahmin edilen harfi kaydet
+            inputLetters.append(predictedClassLabel)
 
-            message = "Doğru çizdin, tebrikler!"
-            audioPlayerManager.playSound(for: "\(predictedClassLabel)_TR") // Türkçe ses dosyasını çalar
+            // Tahmin edilen harfi TTS ile okuma
+            audioPlayerManager.speakLetter(predictedClassLabel)
 
-            withAnimation {
-                showMessage = true
-            }
             print("Tahmin başarıyla yapıldı, sınıf: \(predictedClassLabel)")
         } catch {
             print("Model tahmin işlemi başarısız oldu: \(error.localizedDescription)")
@@ -167,4 +159,3 @@ struct ContentView: View {
         currentDrawing = []
     }
 }
-

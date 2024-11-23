@@ -2,13 +2,34 @@ import AVFoundation
 
 class AudioPlayerManager: ObservableObject {
     private var audioPlayer: AVAudioPlayer?
-    private var speechSynthesizer = AVSpeechSynthesizer() // Text-to-Speech desteği
-    
-    /// Tek bir harfi ses dosyasından oynatır
+    private var speechSynthesizer = AVSpeechSynthesizer()
+
+    /// Harflerden bir kelime oluşturup Türkçe Text-to-Speech ile seslendirme
+    func speakWord(from letters: [String]) {
+        let word = letters.joined() // Harflerden bir kelime oluştur
+        let utterance = AVSpeechUtterance(string: word.lowercased()) // Tüm harfleri küçük yaz
+        utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
+        utterance.rate = 0.3 // Daha yavaş bir okuma hızı
+        utterance.postUtteranceDelay = 0.5 // Her kelimeden sonra 0.5 saniye duraklama
+        speechSynthesizer.speak(utterance)
+        print("Okunan kelime: \(word) - Dil: Türkçe")
+    }
+
+    /// Tek bir harfi Türkçe Text-to-Speech ile seslendirme
+    func speakLetter(_ letter: String) {
+        let utterance = AVSpeechUtterance(string: letter.lowercased()) // Küçük harf olarak seslendirme
+        utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
+        utterance.rate = 0.3 // Daha yavaş bir okuma hızı
+        utterance.postUtteranceDelay = 0.5 // Harften sonra 0.5 saniye duraklama
+        speechSynthesizer.speak(utterance)
+        print("Okunan harf: \(letter) - Dil: Türkçe")
+    }
+
+    /// Tek bir harfi Türkçe ses dosyası ile oynatma
     func playSound(for letter: String) {
-        let soundFileName = letter.uppercased()
-        guard let soundURL = Bundle.main.url(forResource: soundFileName, withExtension: "mp3") else {
-            print("Ses dosyası bulunamadı: \(soundFileName).mp3")
+        let soundFileName = "\(letter.uppercased())_TR"
+        guard let soundURL = Bundle.main.url(forResource: soundFileName, withExtension: "mp3", subdirectory: "Letters") else {
+            print("Ses dosyası bulunamadı: Letters/\(soundFileName).mp3")
             return
         }
         
@@ -17,36 +38,11 @@ class AudioPlayerManager: ObservableObject {
                 audioPlayer?.stop()
             }
             audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+            audioPlayer?.prepareToPlay() // Sesin daha rahat başlaması için önceden hazırla
             audioPlayer?.play()
             print("Ses çalınıyor: \(soundFileName).mp3")
         } catch {
             print("Ses çalma hatası: \(error.localizedDescription)")
-        }
-    }
-
-    /// Harfleri birleştirerek kelimeyi Türkçe seslendirme yapar
-    func speakWord(from letters: [String]) {
-        let word = letters.joined() // Harfleri birleştirerek bir kelime oluşturur
-        let utterance = AVSpeechUtterance(string: word)
-        utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
-        utterance.rate = 0.3 // Okuma hızı (insansı hız için 0.5 ideal)
-        utterance.pitchMultiplier = 1.0 // Ses tonu
-        utterance.volume = 1.0 // Ses seviyesi
-        speechSynthesizer.speak(utterance)
-        print("Okunan kelime (Türkçe): \(word)")
-    }
-
-    /// Harflerin tamamını sırayla ses dosyası olarak çalar
-    func playAllLettersSequentially(inputLetters: [String]) {
-        let lettersQueue = DispatchQueue(label: "lettersQueue", attributes: .concurrent)
-        
-        lettersQueue.async {
-            for letter in inputLetters {
-                DispatchQueue.main.async {
-                    self.playSound(for: letter)
-                }
-                Thread.sleep(forTimeInterval: 0.8) // Her harf arasında gecikme ekler
-            }
         }
     }
 }
