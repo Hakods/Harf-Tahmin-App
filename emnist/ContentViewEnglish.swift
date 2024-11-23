@@ -2,15 +2,15 @@ import SwiftUI
 import CoreML
 import UIKit
 
-struct ContentView: View {
+struct ContentViewEnglish: View {
     @State private var predictedClassLabel: String = "?"
     @State private var message: String = ""
     @State private var currentDrawing = [CGPoint]()
     @State private var drawings = [[CGPoint]]()
     @State private var showMessage = false
-    @State private var inputLetters = [String]() // Tahmin edilen harfleri kaydeder
+    @State private var inputLetters = [String]() // Store predicted letters
 
-    @StateObject private var audioPlayerManager = AudioPlayerManager()
+    @StateObject private var audioPlayerManager = AudioPlayerManagerEnglish()
 
     private let model = try? EMNISTClassifier(configuration: .init())
     
@@ -20,14 +20,14 @@ struct ContentView: View {
                 .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
-                Text("Harf Tahmin Uygulaması")
+                Text("Letter Prediction App")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(Color(hex: "#00ADB5"))
                     .padding(.top, 30)
 
                 VStack {
-                    Text("Tahmin Edilen Harf: \(predictedClassLabel)")
+                    Text("Predicted Letter: \(predictedClassLabel)")
                         .font(.title2)
                         .fontWeight(.semibold)
                         .padding()
@@ -41,7 +41,7 @@ struct ContentView: View {
                 if showMessage {
                     Text(message)
                         .font(.headline)
-                        .foregroundColor(message == "Doğru çizdin, tebrikler!" ? Color(hex: "#00ADB5") : Color(hex: "#EEEEEE"))
+                        .foregroundColor(message == "Great job, correct!" ? Color(hex: "#00ADB5") : Color(hex: "#EEEEEE"))
                         .transition(.opacity)
                         .padding()
                 }
@@ -75,7 +75,7 @@ struct ContentView: View {
                 Button(action: {
                     predictFromCanvas()
                 }) {
-                    Text("Tahmin Yap")
+                    Text("Predict")
                         .fontWeight(.bold)
                         .foregroundColor(Color(hex: "#EEEEEE"))
                         .padding()
@@ -86,12 +86,11 @@ struct ContentView: View {
                 }
                 .padding([.leading, .trailing])
 
-                // Girilen harfleri okumak için buton
                 Button(action: {
-                    audioPlayerManager.speakWord(from: inputLetters) // Harfleri kelime olarak oku
-                    inputLetters.removeAll() // Listeyi sıfırla
+                    audioPlayerManager.playAllLetters(inputLetters: inputLetters)
+                    inputLetters.removeAll()
                 }) {
-                    Text("Girilen Harfleri Oku")
+                    Text("Read Entered Letters")
                         .fontWeight(.bold)
                         .foregroundColor(Color(hex: "#EEEEEE"))
                         .padding()
@@ -115,26 +114,26 @@ struct ContentView: View {
         guard let processedImage = cropTransparency(image: canvasImage),
               let inputBuffer = processedImage.toCVPixelBuffer(),
               let model = model else {
-            print("İşlem başarısız oldu.")
+            print("Prediction failed.")
             return
         }
 
-        print("Tahmin işlemi başladı")
+        print("Prediction started")
 
         do {
             let output = try model.prediction(x: inputBuffer)
             predictedClassLabel = output.classLabel
-            inputLetters.append(predictedClassLabel) // Tahmin edilen harfi kaydet
+            inputLetters.append(predictedClassLabel)
 
-            message = "Doğru çizdin, tebrikler!"
-            audioPlayerManager.playSound(for: "\(predictedClassLabel)_TR") // Türkçe ses dosyasını çalar
+            message = "Great job, correct!"
+            audioPlayerManager.playSound(for: "\(predictedClassLabel)_ENG") // İngilizce ses dosyasını çalar
 
             withAnimation {
                 showMessage = true
             }
-            print("Tahmin başarıyla yapıldı, sınıf: \(predictedClassLabel)")
+            print("Prediction successful, class: \(predictedClassLabel)")
         } catch {
-            print("Model tahmin işlemi başarısız oldu: \(error.localizedDescription)")
+            print("Model prediction failed: \(error.localizedDescription)")
         }
 
         clearDrawing()

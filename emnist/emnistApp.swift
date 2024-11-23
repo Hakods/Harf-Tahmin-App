@@ -11,7 +11,7 @@ import SwiftUI
 struct emnistApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView() // Ana sayfayı başlangıç görünümü olarak ayarlayın
         }
     }
 }
