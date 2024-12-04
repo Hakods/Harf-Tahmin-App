@@ -16,11 +16,12 @@ class AudioPlayerManagerEng: ObservableObject {
 
     /// Tek bir harfi İngilizce Text-to-Speech ile seslendirme
     func speakLetter(_ letter: String) {
-        // TTS'nin harfi yalnızca "A", "B" olarak okuması için kelime yerine ayrı seslendirme yap
-        let utterance = AVSpeechUtterance(string: letter) // Küçük veya büyük harf fark etmez
+        // Harf açıklamaları eklenmeden yalnızca harfi okur
+        let utterance = AVSpeechUtterance(string: letter.lowercased()) // Küçük harf olarak seslendirme
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         utterance.rate = 0.4
         utterance.prefersAssistiveTechnologySettings = false // Ek açıklamaları devre dışı bırak
+        utterance.accessibilityHint = "" // Ek açıklamaları tamamen engellemek için
         speechSynthesizer.speak(utterance)
         print("Read letter: \(letter) - Language: English")
     }

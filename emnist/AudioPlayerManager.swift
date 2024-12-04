@@ -9,18 +9,20 @@ class AudioPlayerManager: ObservableObject {
         let word = letters.joined() // Harflerden bir kelime oluştur
         let utterance = AVSpeechUtterance(string: word.lowercased()) // Tüm harfleri küçük yaz
         utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
-        utterance.rate = 0.4// Daha yavaş bir okuma hızı
+        utterance.rate = 0.4 // Okuma hızı
+        utterance.postUtteranceDelay = 0.5 // Her kelimeden sonra 0.5 saniye duraklama
         speechSynthesizer.speak(utterance)
-        print("Okunan kelime: \(word) - Dil: Türkçe")
+        print("TTS ile okunan kelime: \(word) - Dil: Türkçe")
     }
 
     /// Tek bir harfi Türkçe Text-to-Speech ile seslendirme
     func speakLetter(_ letter: String) {
         let utterance = AVSpeechUtterance(string: letter.lowercased()) // Küçük harf olarak seslendirme
         utterance.voice = AVSpeechSynthesisVoice(language: "tr-TR") // Türkçe seslendirme
-        utterance.rate = 0.4 // Daha yavaş bir okuma hızı
+        utterance.rate = 0.4 // Okuma hızı
+        utterance.postUtteranceDelay = 0.5 // Harften sonra 0.5 saniye duraklama
         speechSynthesizer.speak(utterance)
-        print("Okunan harf: \(letter) - Dil: Türkçe")
+        print("TTS ile okunan harf: \(letter) - Dil: Türkçe")
     }
 
     /// Tek bir harfi Türkçe ses dosyası ile oynatma
@@ -36,8 +38,9 @@ class AudioPlayerManager: ObservableObject {
                 audioPlayer?.stop()
             }
             audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
+            audioPlayer?.prepareToPlay() // Sesin daha rahat başlaması için önceden hazırla
             audioPlayer?.play()
-            print("Ses çalınıyor: \(soundFileName).mp3")
+            print("Letters dosyasından ses çalınıyor: \(soundFileName).mp3")
         } catch {
             print("Ses çalma hatası: \(error.localizedDescription)")
         }

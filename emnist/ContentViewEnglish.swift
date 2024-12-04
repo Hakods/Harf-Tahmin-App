@@ -3,6 +3,7 @@ import CoreML
 import UIKit
 
 struct ContentViewEnglish: View {
+
     @Environment(\.presentationMode) var presentationMode // SwiftUI ortamını kullanarak geri gitme
     @State private var predictedClassLabel: String = "?"
     @State private var currentDrawing = [CGPoint]()
@@ -12,6 +13,8 @@ struct ContentViewEnglish: View {
     @StateObject private var audioPlayerManagerEng = AudioPlayerManagerEng()
 
     private let model = try? EMNISTClassifier(configuration: .init())
+
+
 
     var body: some View {
         ZStack {
@@ -104,6 +107,7 @@ struct ContentViewEnglish: View {
                 .padding([.leading, .trailing])
             }
         }
+
         .navigationBarBackButtonHidden(true) // Varsayılan "Back" butonunu gizle
         .navigationBarItems(leading: backButton) // Özel geri butonu ekle
     }

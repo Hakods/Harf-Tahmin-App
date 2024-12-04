@@ -3,6 +3,7 @@ import CoreML
 import UIKit
 
 struct ContentView: View {
+
     @Environment(\.presentationMode) var presentationMode // SwiftUI ortamını kullanarak geri gitme
     @State private var predictedClassLabel: String = "?"
     @State private var currentDrawing = [CGPoint]()
@@ -105,6 +106,7 @@ struct ContentView: View {
 
             }
         }
+
         .navigationBarBackButtonHidden(true) // Varsayılan "Back" butonunu gizle
         .navigationBarItems(leading: backButton) // Özel geri butonu ekle
     }
@@ -138,8 +140,8 @@ struct ContentView: View {
             predictedClassLabel = output.classLabel
             inputLetters.append(predictedClassLabel)
 
-            // Tahmin edilen harfi TTS ile okuma
-            audioPlayerManager.speakWord(from: [predictedClassLabel])
+            // Tahmin edilen harfi TTS ile okuma (sadece bir kez çağrılacak)
+            audioPlayerManager.speakLetter(predictedClassLabel)
 
             print("Tahmin başarıyla yapıldı, sınıf: \(predictedClassLabel)")
         } catch {
@@ -148,6 +150,7 @@ struct ContentView: View {
 
         clearDrawing()
     }
+
 
     func renderCanvasToUIImage() -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 28, height: 28))
