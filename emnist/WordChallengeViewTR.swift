@@ -1,9 +1,10 @@
 import SwiftUI
 import CoreML
 import UIKit
+import AVFoundation
 
 struct WordChallengeViewTR: View {
-    @Environment(\.presentationMode) var presentationMode // SwiftUI ortamını kullanarak geri gitme
+    @Environment(\.presentationMode) var presentationMode
     @State private var rastgeleKelime: String = ""
     @State private var mevcutHarfIndex: Int = 0
     @State private var mevcutCizim = [CGPoint]()
@@ -11,33 +12,46 @@ struct WordChallengeViewTR: View {
     @State private var tahminEdilenHarf: String = "?"
     @State private var mesaj: String = ""
     @State private var kelimeTamamlandi: Bool = false
-    @State private var dogruHarfler: [Bool] = [] // Hangi harflerin doğru olduğunu tutar
-    @State private var kullanilmisKelimeler: Set<String> = [] // Kullanılmış kelimeleri tutar
+    @State private var dogruHarfler: [Bool] = []
+    @State private var kullanilmisKelimeler: Set<String> = []
+    @State private var animasyonGoster = false
+    @State private var arkaPlanRengi = Color(hex: "#222831")
+    @State private var translation: String = ""
+    @State private var waitingForTap = false // Yeni kelimeye geçmek için tıklamayı bekle
 
-    @StateObject private var sesYoneticisi = AudioPlayerManager()
+    @StateObject private var audioPlayerManagerTr = AudioPlayerManager()
     private let model = try? EMNISTClassifier(configuration: .init())
 
     private let kelimeler = [
-        // 3-4 harfli kelimeler
         "GEL", "EV", "OKUL", "YOL", "HAS", "YAZ", "AY", "BAL", "HAN",
-        "ALP", "KALP", "ELMA", "OYUN", "KURT","KASA",
-
-        // 5 harfli kelimeler
-        "ARABA", "KART", "KASAP", "HAYAL", "RENK", "KAVUN", "ANKA", "FERAH","KEMAL","ERCAN","SEVGI","YASAK",
-
-        // 6 harfli kelimeler
-        "HAKAN", "ANKARA", "SALDA", "YOZGAT", "CESUR", "KORKU", "TURUNC",
-        "PARLAK", "HIRSIZ", "MUTLU", "SAVSAK","DESTEK","TAYYIP",
-
-        // 7 harfli kelimeler
-        "MUSTAFA", "SAVUNMA", "CANATAN","BURAKHAN", "SEVGILI","KASABA",
-        "KAHRAMAN", "DOSTLUK", "KARAMAN"
+        "ALP", "KALP", "ELMA", "OYUN", "KURT", "KASA", "ARABA", "KART",
+        "KASAP", "HAYAL", "RENK", "KAVUN", "ANKA", "FERAH", "KEMAL",
+        "ERCAN", "SEVGI", "YASAK", "HAKAN", "ANKARA", "SALDA", "YOZGAT",
+        "CESUR", "KORKU", "PARLAK", "HIRSIZ", "MUTLU", "SAVSAK",
+        "DESTEK", "KALEM", "LALE", "SAVUNMA", "CANATAN", "KURA",
+        "SEVGILI", "KASABA", "KAHRAMAN", "DOSTLUK", "KARAMAN"
     ]
 
+    private let translations: [String: String] = [
+        "GEL": "Come", "EV": "House", "OKUL": "School", "YOL": "Road",
+        "HAS": "Pure", "YAZ": "Summer", "AY": "Moon", "BAL": "Honey",
+        "HAN": "Inn", "ALP": "Hero", "KALP": "Heart", "ELMA": "Apple",
+        "OYUN": "Game", "KURT": "Wolf", "KASA": "Case", "ARABA": "Car",
+        "KART": "Card", "KASAP": "Butcher", "HAYAL": "Dream", "RENK": "Color",
+        "KAVUN": "Melon", "ANKA": "Phoenix", "FERAH": "Relief", "KEMAL": "Perfection",
+        "ERCAN": "Courage", "SEVGI": "Love", "YASAK": "Ban", "HAKAN": "Ruler",
+        "ANKARA": "Ankara", "SALDA": "Lake Salda", "YOZGAT": "Yozgat",
+        "CESUR": "Brave", "KORKU": "Fear", "PARLAK": "Bright", "HIRSIZ": "Thief",
+        "MUTLU": "Happy", "SAVSAK": "Careless", "DESTEK": "Support",
+        "KALEM": "Pen", "LALE": "Tulip", "SAVUNMA": "Defense",
+        "CANATAN": "Volunteer", "KURA": "Draw", "SEVGILI": "Beloved",
+        "KASABA": "Town", "KAHRAMAN": "Hero", "DOSTLUK": "Friendship",
+        "KARAMAN": "Karaman"
+    ]
 
     var body: some View {
         ZStack {
-            Color(hex: "#222831")
+            arkaPlanRengi
                 .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
@@ -65,6 +79,9 @@ struct WordChallengeViewTR: View {
                         .foregroundColor(Color(hex: "#EEEEEE"))
                 } else {
                     Text("Tebrikler! Kelimeyi Tamamladınız.")
+                        .font(.title3)
+                        .foregroundColor(Color(hex: "#00ADB5"))
+                    Text("İngilizcesi: \(translation)")
                         .font(.title3)
                         .foregroundColor(Color(hex: "#00ADB5"))
                 }
@@ -116,22 +133,35 @@ struct WordChallengeViewTR: View {
                 }
                 .padding([.leading, .trailing])
             }
-            .padding()
-            .onAppear {
-                yeniKelimeUret()
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if kelimeTamamlandi && waitingForTap {
+                    generateRandomWord() // Yeni kelimeyi başlatmak için
+                    waitingForTap = false // Beklemeyi kapat
+                }
+            }
+
+            if animasyonGoster {
+                ConfettiAnimationView()
+                    .transition(.scale)
             }
         }
+        .onAppear {
+            generateRandomWord()
+        }
         .navigationBarBackButtonHidden(true) // Varsayılan "Back" butonunu gizle
-        .navigationBarItems(leading: geriButonu) // Özel geri butonu ekle
+        .navigationBarItems(leading: backButton) // Özel geri butonu ekle
     }
-
-    private var geriButonu: some View {
+    
+    // Özel "Geri" butonu
+    private var backButton: some View {
         Button(action: {
-            self.presentationMode.wrappedValue.dismiss()
+            // Geri gitme işlemi
+            self.presentationMode.wrappedValue.dismiss() // NavigationView'dan bir önceki ekrana döner
         }) {
             HStack {
-                Image(systemName: "chevron.left")
-                Text("Geri")
+                Image(systemName: "chevron.left") // Geri simgesi
+                Text("Geri") // "Geri" yazısı
             }
             .foregroundColor(Color(hex: "#00ADB5"))
         }
@@ -157,24 +187,37 @@ struct WordChallengeViewTR: View {
             tahminEdilenHarf = output.classLabel
 
             if tahminEdilenHarf.uppercased() == mevcutHarf {
-                sesYoneticisi.speakLetter(mevcutHarf)
+                audioPlayerManagerTr.speakLetter(mevcutHarf) // Doğru harfi seslendir
                 dogruHarfler[mevcutHarfIndex] = true
                 mevcutHarfIndex += 1
                 if mevcutHarfIndex >= rastgeleKelime.count {
                     kelimeTamamlandi = true
-                    sesYoneticisi.speakWord(from: rastgeleKelime.map { String($0) })
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        yeniKelimeUret()
-                    }
+                    translation = translations[rastgeleKelime] ?? "Anlamı Bulunamadı"
+                    showCelebration()
+                    audioPlayerManagerTr.speakWord(from: rastgeleKelime.map { String($0) }) // Kelimeyi seslendir
+                    waitingForTap = true // Yeni kelimeye geçmek için tıklama bekle
                 }
                 mesaj = "Doğru harf!"
             } else {
                 mesaj = "Yanlış harf. Tekrar deneyin."
             }
         } catch {
-            print("Model tahmin işlemi başarısız: \(error.localizedDescription)")
+            print("Tahmin başarısız: \(error.localizedDescription)")
         }
         cizimTemizle()
+    }
+
+    private func showCelebration() {
+        withAnimation(.spring()) {
+            animasyonGoster = true
+            arkaPlanRengi = Color(hex: "#00ADB5").opacity(0.8)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.spring()) {
+                animasyonGoster = false
+                arkaPlanRengi = Color(hex: "#222831")
+            }
+        }
     }
 
     private func renderCanvasToUIImage() -> UIImage {
@@ -204,15 +247,16 @@ struct WordChallengeViewTR: View {
         mevcutCizim = []
     }
 
-    private func yeniKelimeUret() {
+    private func generateRandomWord() {
         let uygunKelimeler = kelimeler.filter { !kullanilmisKelimeler.contains($0) }
         if uygunKelimeler.isEmpty {
             kullanilmisKelimeler.removeAll()
         }
-        rastgeleKelime = uygunKelimeler.randomElement() ?? "KAPI"
+        rastgeleKelime = uygunKelimeler.randomElement() ?? "GEL"
         kullanilmisKelimeler.insert(rastgeleKelime)
         dogruHarfler = Array(repeating: false, count: rastgeleKelime.count)
         mevcutHarfIndex = 0
         kelimeTamamlandi = false
+        waitingForTap = false // Yeni kelimeye geçmeden önce beklemeyi sıfırla
     }
 }

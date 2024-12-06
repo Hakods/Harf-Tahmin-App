@@ -1,9 +1,10 @@
 import SwiftUI
 import CoreML
 import UIKit
+import AVFoundation
 
 struct WordChallengeView: View {
-    @Environment(\.presentationMode) var presentationMode // SwiftUI ortamını kullanarak geri gitme
+    @Environment(\.presentationMode) var presentationMode
     @State private var randomWord: String = ""
     @State private var currentLetterIndex: Int = 0
     @State private var currentDrawing = [CGPoint]()
@@ -11,34 +12,79 @@ struct WordChallengeView: View {
     @State private var predictedClassLabel: String = "?"
     @State private var message: String = ""
     @State private var isWordCompleted: Bool = false
-    @State private var correctLetters: [Bool] = [] // Hangi harflerin doğru olduğunu tutar
-    @State private var usedWords: Set<String> = [] // Kullanılmış kelimeleri tutar
+    @State private var correctLetters: [Bool] = []
+    @State private var usedWords: Set<String> = []
+    @State private var showAnimation = false
+    @State private var backgroundColor = Color(hex: "#222831")
+    @State private var translation: String = "" // Türkçe anlamı göstermek için
+    @State private var waitingForTap = false // Kullanıcının ekrana tıklamasını bekliyor
 
     @StateObject private var audioPlayerManagerEng = AudioPlayerManagerEng()
     private let model = try? EMNISTClassifier(configuration: .init())
 
     private let words = [
-        // 4 harfli kelimeler
         "LOVE", "HOPE", "TIME", "NAME", "SONG", "HOME", "LIFE", "MIND",
-        "PLAN", "GOAL", "WORK", "PLAY",
-
-        // 5 harfli kelimeler
-        "DREAM", "LIGHT", "STORM", "RIVER", "BEACH", "HOUSE", "FLAME", "CLOUD",
-        "SOUND", "BRAVE", "GRACE", "PEACE", "FAITH", "UNITY", "TRUTH", "POWER",
-
-        // 6 harfli kelimeler
-        "FAMILY", "GROWTH", "FOREST", "FRIEND", "BELOVED", "INSIDE", "STARRY",
-        "NATION", "BRIGHT", "STRONG", "VISION", "ACTION", "HEALTH", "CIRCLE",
-
-        // 7 harfli kelimeler
-        "FREEDOM", "GLORIFY", "VICTORY", "EMOTION", "DESTINY", "BALANCE",
-        "PRIVACY", "EXPLORE", "COURAGE", "PASSION", "JUSTICE", "VILLAGE",
-        "CHARITY", "WISDOM", "HARVEST"
+        "PLAN", "GOAL", "WORK", "PLAY", "TASK", "TEAM", "IDEA", "DREAM",
+        "STAR", "MOON", "WIND", "RAIN", "FIRE", "WAVE", "TREE", "ROCK",
+        "BOOK", "GAME", "CODE", "DATA", "VIEW", "PATH", "LINE", "FACE",
+        "HAND", "BODY", "CITY", "TOWN", "ROAD", "LAKE", "SHIP", "FOOD",
+        "WINE", "MEAL", "RIDE", "JUMP", "MOVE", "CALL", "LIST", "NOTE"
+    ]
+    
+    private let translations: [String: String] = [
+        "LOVE": "Aşk",
+        "HOPE": "Umut",
+        "TIME": "Zaman",
+        "NAME": "İsim",
+        "SONG": "Şarkı",
+        "HOME": "Ev",
+        "LIFE": "Hayat",
+        "MIND": "Zihin",
+        "PLAN": "Plan",
+        "GOAL": "Hedef",
+        "WORK": "Çalışma",
+        "PLAY": "Oyun",
+        "TASK": "Görev",
+        "TEAM": "Takım",
+        "IDEA": "Fikir",
+        "DREAM": "Rüya",
+        "STAR": "Yıldız",
+        "MOON": "Ay",
+        "WIND": "Rüzgar",
+        "RAIN": "Yağmur",
+        "FIRE": "Ateş",
+        "WAVE": "Dalga",
+        "TREE": "Ağaç",
+        "ROCK": "Kaya",
+        "BOOK": "Kitap",
+        "GAME": "Oyun",
+        "CODE": "Kod",
+        "DATA": "Veri",
+        "VIEW": "Görünüm",
+        "PATH": "Yol",
+        "LINE": "Çizgi",
+        "FACE": "Yüz",
+        "HAND": "El",
+        "BODY": "Vücut",
+        "CITY": "Şehir",
+        "TOWN": "Kasaba",
+        "ROAD": "Yol",
+        "LAKE": "Göl",
+        "SHIP": "Gemi",
+        "FOOD": "Yemek",
+        "WINE": "Şarap",
+        "MEAL": "Öğün",
+        "RIDE": "Biniş",
+        "JUMP": "Zıplama",
+        "MOVE": "Hareket",
+        "CALL": "Arama",
+        "LIST": "Liste",
+        "NOTE": "Not"
     ]
 
     var body: some View {
         ZStack {
-            Color(hex: "#222831")
+            backgroundColor
                 .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
@@ -66,6 +112,9 @@ struct WordChallengeView: View {
                         .foregroundColor(Color(hex: "#EEEEEE"))
                 } else {
                     Text("Congratulations! You completed the word.")
+                        .font(.title3)
+                        .foregroundColor(Color(hex: "#00ADB5"))
+                    Text("Türkçe Anlamı: \(translation)")
                         .font(.title3)
                         .foregroundColor(Color(hex: "#00ADB5"))
                 }
@@ -117,23 +166,33 @@ struct WordChallengeView: View {
                 }
                 .padding([.leading, .trailing])
             }
-            .padding()
-            .onAppear {
-                generateRandomWord()
+
+            if showAnimation {
+                ConfettiAnimationView()
+                    .transition(.scale)
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if isWordCompleted && waitingForTap {
+                generateRandomWord() // Yeni kelimeyi başlatmak için
+                waitingForTap = false // Beklemeyi kapat
+            }
+        }
+        .onAppear {
+            generateRandomWord()
         }
         .navigationBarBackButtonHidden(true) // Varsayılan "Back" butonunu gizle
         .navigationBarItems(leading: backButton) // Özel geri butonu ekle
     }
-
-    // Özel "Back" butonu
     private var backButton: some View {
         Button(action: {
-            self.presentationMode.wrappedValue.dismiss() // Geri gitme işlemi
+            // Geri gitme işlemi
+            self.presentationMode.wrappedValue.dismiss() // NavigationView'dan bir önceki ekrana döner
         }) {
             HStack {
                 Image(systemName: "chevron.left") // Geri simgesi
-                Text("Back") // "Back" yazısı
+                Text("Back") // "Geri" yazısı
             }
             .foregroundColor(Color(hex: "#00ADB5"))
         }
@@ -159,17 +218,15 @@ struct WordChallengeView: View {
             predictedClassLabel = output.classLabel
 
             if predictedClassLabel.uppercased() == currentLetter {
-                audioPlayerManagerEng.speakLetter(currentLetter)
+                audioPlayerManagerEng.speakLetter(currentLetter) // Doğru harfi seslendir
                 correctLetters[currentLetterIndex] = true
                 currentLetterIndex += 1
                 if currentLetterIndex >= randomWord.count {
                     isWordCompleted = true
-                    audioPlayerManagerEng.speakWord(from: randomWord.map { String($0) })
-                    
-                    // Gecikmeli yeni kelime başlat
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                        generateRandomWord()
-                    }
+                    translation = translations[randomWord] ?? "Anlamı Bulunamadı"
+                    showCelebration()
+                    audioPlayerManagerEng.speakWord(from: randomWord.map { String($0) }) // Tüm kelimeyi seslendir
+                    waitingForTap = true // Yeni kelimeyi bekle
                 }
                 message = "Correct letter!"
             } else {
@@ -179,6 +236,19 @@ struct WordChallengeView: View {
             print("Model prediction failed: \(error.localizedDescription)")
         }
         clearCanvas()
+    }
+
+    private func showCelebration() {
+        withAnimation(.spring()) {
+            showAnimation = true
+            backgroundColor = Color(hex: "#00ADB5").opacity(0.8)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.spring()) {
+                showAnimation = false
+                backgroundColor = Color(hex: "#222831")
+            }
+        }
     }
 
     private func renderCanvasToUIImage() -> UIImage {
